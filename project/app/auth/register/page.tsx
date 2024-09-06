@@ -100,9 +100,9 @@ export default function Page() {
 
     <div className='mt-24 flex justify-center'>
         <div className='flex justify-center w-[20%] text-2xl antialiased font-semibold items-center gap-[7%] cursor-pointer'>
-        <div>Đăng nhập</div>
+        <div className='text-gray-400 hover:text-black duration-500'>Đăng nhập</div>
         <div className='text-3xl font-thin'>|</div>
-        <div className='text-gray-400 hover:text-black duration-500'>Đăng ký</div>
+        <div>Đăng ký</div>
         </div>
     </div>
     <div className='flex justify-center '>

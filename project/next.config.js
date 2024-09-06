@@ -6,7 +6,7 @@ module.exports = {
           hostname: 'theme.hstatic.net',
           port: '',
           pathname: '/**',
-        },
+        }
       ],
     },
   }
