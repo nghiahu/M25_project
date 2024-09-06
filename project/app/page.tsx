@@ -4,12 +4,13 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBell, faMagnifyingGlass, faUser,faBagShopping,faEnvelope} from "@fortawesome/free-solid-svg-icons";
 import Image from 'next/image';
 import { NavigationMenu, NavigationMenuContent, NavigationMenuIndicator, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger, NavigationMenuViewport, } from "@/components/ui/navigation-menu"
-import Link from 'next/link';
+import { Carousels,CarouselContent,CarouselItem, CarouselNext, CarouselPrevious,} from "@/components/ui/carousel"
 import { FaFacebookSquare, FaInstagramSquare, FaTiktok, FaTwitter } from 'react-icons/fa';
 import { Popover, PopoverContent, PopoverTrigger,} from "@/components/ui/popover"
 import Carousel from 'react-bootstrap/Carousel';
 import 'bootstrap/dist/css/bootstrap.min.css';
-export default function Page() {
+import { Card, CardContent } from '@/components/ui/card';
+export default function Home() {
   return (
    <>
     <div className='bg-black flex justify-center'>
@@ -113,6 +114,7 @@ export default function Page() {
     {/* End Header and Navigate */}
 
     {/* Carousel */}
+    <div>
     <Carousel data-bs-theme="">
       <Carousel.Item>
         <Image src="https://theme.hstatic.net/200000690725/1001078549/14/slide_1_img.jpg?v=447" alt='' height={500} width={1500}></Image>
@@ -124,11 +126,34 @@ export default function Page() {
       <Image src="https://theme.hstatic.net/200000690725/1001078549/14/slide_4_img.jpg?v=447" alt='' height={500} width={1500}></Image>
       </Carousel.Item>
     </Carousel>
-
+    </div>
     {/* Carousel */}
 
    {/* Body */}
-
+    <div>
+      {/* Danh mục sản phẩm */}
+      <div className='flex justify-center mt-24'>
+      <div className='w-[90%]'>
+        <div className='text-5xl font-semibold font-sans'>Danh mục sản phẩm</div>
+        <div className='mt-10'>
+        <Carousels className="w-[100%] h-[300px]">
+          <CarouselContent className="-ml-2">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <CarouselItem key={index} className="pl-1 md:basis-1/2 lg:basis-1/4 ">
+                <div className="p-1 border h-[60vh]">
+                  {index +1}
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious />
+          <CarouselNext />
+        </Carousels>
+        </div>
+      </div>
+      </div>
+{/* Danh mục sản phẩm */}
+    </div>
    {/* Body */}
 
     <div className='mt-28'>

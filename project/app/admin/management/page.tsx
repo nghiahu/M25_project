@@ -1,4 +1,6 @@
+"use client"
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import React from 'react'
 import { BiReset, BiSolidCategory } from 'react-icons/bi'
 import { BsFillPersonFill, BsGraphDownArrow, BsGraphUpArrow } from 'react-icons/bs'
@@ -16,6 +18,10 @@ export default function page() {
   const isOrderpage = "";
   const isAdminpage = "";
   const isAdminCategory = "";
+  const router = useRouter();
+  const handleLout=()=>{
+    router.push("/auth/loginAdmin")
+  }
   return (
     <>
     <div className='bg-gray-300 h-screen w-full'>
@@ -33,7 +39,7 @@ export default function page() {
           <Link href="adCategory" className='flex items-center gap-4 text-gray-500 py-2 px-6'><BiSolidCategory />Danh mục</Link>
         </div>
         <hr className='border-gray-600 my-8 mx-6'/>
-        <div className='flex items-center text-gray-500 gap-4 px-6'>
+        <div className='flex items-center text-gray-500 gap-4 px-6' onClick={handleLout}>
           <RiLogoutBoxRLine />Đăng xuất
         </div>
       </div>
