@@ -12,6 +12,7 @@ export default function Page() {
   const [loginError, setLoginError] = useState<boolean>(false);
 
   const validUser = {
+    id:1,
     email: "nghia120425@gmail.com",
     password: "nghia12345"
   };
@@ -24,8 +25,9 @@ export default function Page() {
       return; 
     }
 
-    if (email === validUser.email && password === validUser.password) {
-      router.push('/admin/management')
+    if (email === validUser.email && password === validUser.password){
+      localStorage.setItem("LogInId",JSON.stringify(validUser.id))
+      router.push('/management')
       setLoginError(false);
     } else {
       setLoginError(true);
@@ -33,8 +35,8 @@ export default function Page() {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen flex-col gap-8 bg-cover bg-center bg-no-repeat background-image: url('./public/Assets/images/energy-broker-crm+(1).png')">
-      <div className="flex justify-center items-center text-[#e4dede] font-bold text-4xl gap-1 w-full">
+    <div className="flex justify-center items-center h-screen flex-col gap-8 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('https://ig.com.my/wp-content/uploads/2017/11/profile-background.jpg')" }}>
+    <div className="flex justify-center items-center text-[#e4dede] font-bold text-4xl gap-1 w-full">
         <IoLogoPinterest /> Đăng nhập quản lý
       </div>
       <div className="border border-gray-500 rounded-md w-1/3 bg-white p-8">
