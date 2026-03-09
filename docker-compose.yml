@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: rikkei-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-rikkei}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rikkei@2024}
+      POSTGRES_DB: ${DB_NAME:-rikkei_prod}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432" # Internal only, not exposed externally
+    networks:
+      - rikkei-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-rikkei}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    labels:
+      - "app=rikkei"
+      - "component=database"
+
+  # Backend API (JSON Server)
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: m25-backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 8080
+    volumes:
+      - ./server/db.json:/app/db.json
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    networks:
+      - rikkei-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "app=rikkei"
+      - "component=api-server"
+
+  # Frontend Application (Next.js)
+  frontend:
+    build:
+      context: ./project
+      dockerfile: ../Dockerfile
+    container_name: m25-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api.rikkei.edu.vn}
+      NODE_ENV: ${NODE_ENV:-production}
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - rikkei-network
+    depends_on:
+      backend:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    labels:
+      - "app=rikkei"
+      - "component=frontend"
+
+  # Nginx Reverse Proxy & Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: rikkei-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - rikkei-network
+    depends_on:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    labels:
+      - "app=rikkei"
+      - "component=reverse-proxy"
+
+volumes:
+  postgres_data:
+    driver: local
+    labels:
+      - "app=rikkei"
+      - "data=database-persistent"
+
+networks:
+  rikkei-network:
+    driver: bridge
+    labels:
+      - "app=rikkei"
+      - "network=internal"
