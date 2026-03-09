@@ -131,17 +131,27 @@ jobs:
             containers_running=$(docker ps --format '{{.Names}}' | wc -l)
             echo "Running containers: $containers_running"
             
-            # Test health endpoint
-            health_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health)
-            echo "Health check status: $health_status"
+            # Wait for services to stabilize
+            sleep 10
             
-            if [ "$health_status" != "200" ]; then
+            # Test health endpoints
+            frontend_health=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health)
+            echo "Frontend health status: $frontend_health"
+            
+            backend_health=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080)
+            echo "Backend health status: $backend_health"
+            
+            # Check docker compose status
+            docker-compose ps
+            
+            if [ "$frontend_health" != "200" ] || [ "$backend_health" != "200" ]; then
               echo "Health check failed! Deployment may have issues."
-              docker-compose logs
+              echo "=== Docker Compose Logs ==="
+              docker-compose logs --tail=50
               exit 1
             fi
             
-            echo "Deployment successful!"
+            echo "✅ Deployment successful!"
 
   rollback:
     name: Rollback on Failure
