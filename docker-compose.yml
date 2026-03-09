@@ -28,10 +28,11 @@ services:
 
   # Backend API (JSON Server)
   backend:
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_USERNAME:-rikkei}/m25-backend:${BACKEND_TAG:-latest}
+    container_name: m25-backend
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: m25-backend
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 8080
@@ -57,10 +58,11 @@ services:
 
   # Frontend Application (Next.js)
   frontend:
+    image: ${DOCKER_REGISTRY:-docker.io}/${DOCKER_USERNAME:-rikkei}/m25-frontend:${FRONTEND_TAG:-latest}
+    container_name: m25-frontend
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: m25-frontend
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api.rikkei.edu.vn}
       NODE_ENV: ${NODE_ENV:-production}

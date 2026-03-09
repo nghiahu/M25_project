@@ -10,15 +10,16 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/m25-frontend
+  BACKEND_IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/m25-backend
   COMPOSE_FILE: docker-compose.yml
 
 jobs:
   build:
-    name: Build Docker Image
+    name: Build Docker Images
     runs-on: ubuntu-latest
     outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
-      image-digest: ${{ steps.build.outputs.digest }}
+      frontend-tag: ${{ steps.frontend-meta.outputs.tags }}
+      backend-tag: ${{ steps.backend-meta.outputs.tags }}
 
     steps:
       - name: Checkout code
@@ -33,29 +34,53 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Extract metadata
-        id: meta
+      # Frontend Image
+      - name: Extract frontend metadata
+        id: frontend-meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
-            type=semver,pattern={{version}}
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ github.run_number }}
 
-      - name: Build and push Docker image
-        id: build
+      - name: Build and push frontend Docker image
+        id: frontend-build
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.frontend-meta.outputs.tags }}
+          labels: ${{ steps.frontend-meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+      # Backend Image
+      - name: Extract backend metadata
+        id: backend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.run_number }}
+
+      - name: Build and push backend Docker image
+        id: backend-build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          push: true
+          tags: ${{ steps.backend-meta.outputs.tags }}
+          labels: ${{ steps.backend-meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:buildcache,mode=max
 
   deploy:
     name: Deploy to Production Server
@@ -80,7 +105,7 @@ jobs:
             # Navigate to project directory
             cd ${{ secrets.PROJECT_PATH }}
             
-            # Create .env file from secrets
+            # Create .env file from secrets and build info
             cat > .env << EOF
             DB_USER=${{ secrets.DB_USER }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
@@ -93,13 +118,21 @@ jobs:
             BACKEND_PORT=8080
             DOMAIN=ngo-huu-nghia-k23.rikkeieducation.com
             API_DOMAIN=api.ngo-huu-nghia-k23.rikkeieducation.com
+            DOCKER_REGISTRY=${{ env.REGISTRY }}
+            DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+            FRONTEND_TAG=latest
+            BACKEND_TAG=latest
             EOF
             
             # Pull latest code
             git pull origin main
             
+            # Login to Docker Hub
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            
             # Pull latest Docker images
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest
             
             # Stop and remove old containers
             docker-compose down --remove-orphans || true
