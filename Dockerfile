@@ -3,36 +3,23 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
+COPY project/package*.json ./
 RUN npm ci
 
-# Copy source code
-COPY . .
-
-# Build Next.js
+COPY project/ .
 RUN npm run build
 
+
 # Stage 2: Production
-FROM nginx:alpine
+FROM node:18-alpine
 
-# Install curl for health check
-RUN apk add --no-cache curl
+WORKDIR /app
 
-# Copy nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copy standalone build
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/static ./.next/static
 
-# Copy built app from builder
-COPY --from=builder /app/.next/standalone /app
-COPY --from=builder /app/public /app/public
-COPY --from=builder /app/.next/static /app/.next/static
+EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost/health || exit 1
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node","server.js"]
