@@ -125,30 +125,38 @@ jobs:
             EOF
             
             # Pull latest code
-            git pull origin main
+            echo "Pulling latest code..."
+            git pull origin main || git pull origin master || true
             
             # Login to Docker Hub
-            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            echo "Logging in to Docker Hub..."
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin || exit 1
             
             # Pull latest Docker images
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            docker pull ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest
+            echo "Pulling Docker images..."
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest || { echo "Failed to pull frontend image"; exit 1; }
+            docker pull ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest || { echo "Failed to pull backend image"; exit 1; }
+            
+            # Verify images exist
+            echo "Verifying images..."
+            docker image ls | grep -E "m25-frontend|m25-backend"
             
             # Stop and remove old containers
+            echo "Stopping old containers..."
             docker-compose down --remove-orphans || true
             
             # Start new containers
-            docker-compose up -d
+            echo "Starting new containers..."
+            docker-compose up -d || { echo "docker-compose up failed"; docker-compose logs; exit 1; }
             
-            # Wait for services to be healthy
+            # Wait for services to stabilize
             echo "Waiting for services to be healthy..."
-            sleep 30
+            sleep 10
             
-            # Check health
+            # Check container status
+            echo "Container status:"
             docker-compose ps
-            
-            # Cleanup old images
-            docker image prune -f --filter "dangling=true"
+            docker ps
 
       - name: Verify deployment
         uses: appleboy/ssh-action@master
@@ -160,31 +168,55 @@ jobs:
           script: |
             cd ${{ secrets.PROJECT_PATH }}
 
+            echo "=== Verifying Deployment ==="
+            
             # Check if containers are running
+            echo -e "\n[1/6] Container Status:"
             containers_running=$(docker ps --format '{{.Names}}' | wc -l)
             echo "Running containers: $containers_running"
+            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
             
-            # Wait for services to stabilize
-            sleep 10
+            # Show docker-compose services
+            echo -e "\n[2/6] Docker Compose Status:"
+            docker-compose ps || echo "docker-compose ps failed"
             
-            # Test health endpoints
-            frontend_health=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health)
+            # Show logs of all services
+            echo -e "\n[3/6] Recent Logs (last 20 lines):"
+            docker-compose logs --tail=20 2>&1 || true
+            
+            # Wait a bit more for services to start
+            sleep 15
+            
+            # Test frontend health
+            echo -e "\n[4/6] Testing Frontend Health..."
+            frontend_health=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health 2>/dev/null || echo "000")
             echo "Frontend health status: $frontend_health"
             
-            backend_health=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080)
+            # Test backend health  
+            echo -e "\n[5/6] Testing Backend Health..."
+            backend_health=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 2>/dev/null || echo "000")
             echo "Backend health status: $backend_health"
             
-            # Check docker compose status
-            docker-compose ps
+            # Test nginx health
+            echo -e "\n[6/6] Testing Nginx Health..."
+            nginx_health=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health 2>/dev/null || echo "000")
+            echo "Nginx health status: $nginx_health"
             
+            # If still not healthy, show detailed logs
             if [ "$frontend_health" != "200" ] || [ "$backend_health" != "200" ]; then
-              echo "Health check failed! Deployment may have issues."
-              echo "=== Docker Compose Logs ==="
-              docker-compose logs --tail=50
+              echo -e "\n❌ Health checks failed. Showing detailed logs:"
+              echo -e "\n=== Frontend Logs ==="
+              docker-compose logs frontend || true
+              echo -e "\n=== Backend Logs ==="
+              docker-compose logs backend || true
+              echo -e "\n=== Database Logs ==="
+              docker-compose logs postgres || true
+              echo -e "\n=== Nginx Logs ==="
+              docker-compose logs nginx || true
               exit 1
             fi
             
-            echo "✅ Deployment successful!"
+            echo -e "\n✅ Deployment verification successful!"
 
   rollback:
     name: Rollback on Failure
