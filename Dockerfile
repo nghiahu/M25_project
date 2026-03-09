@@ -6,7 +6,7 @@ WORKDIR /app
 COPY project/package*.json ./
 RUN npm ci
 
-COPY project/ .
+COPY project .
 RUN npm run build
 
 
